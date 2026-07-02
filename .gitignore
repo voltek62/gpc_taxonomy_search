@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+*.log
+nohup.out
+# Décommente si tu préfères NE PAS committer les embeddings précalculés
+# (l'app les recalculera au premier démarrage) :
+# embeddings.npy
