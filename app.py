@@ -12,9 +12,11 @@ Free hosting: Streamlit Community Cloud (see README.md).
 """
 
 from pathlib import Path
+import html as _html
 
 import numpy as np
 import streamlit as st
+import streamlit.components.v1 as components
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 
@@ -126,6 +128,80 @@ def hybrid_search(query, vec, X, emb, w_sem, top_k, allowed_idx=None):
     return order, tf, dense
 
 
+_TABLE_CSS_JS = """
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; background: transparent;
+         font-family: "Source Sans Pro", system-ui, -apple-system, sans-serif; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; color: #111; }
+  th, td { padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { font-weight: 600; color: #333; border-bottom: 2px solid #ccc; white-space: nowrap; }
+  td { border-bottom: 1px solid #eee; }
+  /* colonnes réduites au minimum */
+  .num, .id, .sc, .cp { width: 1%; white-space: nowrap; }
+  .sc { text-align: right; color: #777; font-variant-numeric: tabular-nums; }
+  .num { color: #999; }
+  /* Path prend tout l'espace restant */
+  .path { width: 100%; word-break: break-word; }
+  .cpbtn { cursor: pointer; border: 1px solid #d0d0d0; border-radius: 6px;
+           background: #fff; padding: 1px 7px; font-size: 0.95rem; line-height: 1.4; }
+  .cpbtn:hover { background: #f0f2f6; }
+  @media (prefers-color-scheme: dark) {
+    table { color: #eaeaea; }
+    th { color: #ddd; border-bottom-color: #555; }
+    td { border-bottom-color: #333; }
+    .cpbtn { background: #262730; color: #eaeaea; border-color: #555; }
+    .cpbtn:hover { background: #3a3b45; }
+  }
+</style>
+<table>
+  <thead><tr>
+    <th class="num">#</th><th class="id">ID</th>
+    <th class="sc">sem</th><th class="sc">lex</th>
+    <th class="cp"></th><th class="path">Path</th>
+  </tr></thead>
+  <tbody>__ROWS__</tbody>
+</table>
+<script>
+  document.querySelectorAll('.cpbtn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var t = b.getAttribute('data-t'), done = false;
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = t; ta.style.position = 'fixed'; ta.style.top = '-1000px';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        done = document.execCommand('copy'); document.body.removeChild(ta);
+      } catch (e) {}
+      if (!done && navigator.clipboard) { navigator.clipboard.writeText(t); }
+      b.textContent = '✓';
+      setTimeout(function () { b.textContent = '📋'; }, 1200);
+    });
+  });
+</script>
+"""
+
+
+def render_results(order, ids, paths, dense, tf):
+    def esc(s):
+        return _html.escape(str(s), quote=True)
+
+    trs = []
+    for rank, i in enumerate(order, start=1):
+        trs.append(
+            "<tr>"
+            f'<td class="num">{rank}</td>'
+            f'<td class="id">{esc(ids[i])}</td>'
+            f'<td class="sc">{max(dense[i], 0) * 100:.0f}</td>'
+            f'<td class="sc">{max(tf[i], 0) * 100:.0f}</td>'
+            f'<td class="cp"><button class="cpbtn" data-t="{esc(paths[i])}" '
+            'title="Copy path to clipboard">📋</button></td>'
+            f'<td class="path">{esc(paths[i])}</td>'
+            "</tr>"
+        )
+    html_table = _TABLE_CSS_JS.replace("__ROWS__", "".join(trs))
+    components.html(html_table, height=60 + len(order) * 46, scrolling=True)
+
+
 # --- UI -------------------------------------------------------------------
 
 st.title("🔎 Category Search — Google Product Type (it-IT)")
@@ -192,21 +268,7 @@ if query:
     if translated:
         st.caption(f"Query translated to Italian: **{search_q}**")
     st.subheader(f"Results for « {query} »")
-    rows = [
-        {
-            "Rank": r,
-            "ID": ids[i],
-            "Category": leaves[i],
-            "Path": paths[i],
-            "sem %": f"{max(dense[i], 0) * 100:.0f}",
-            "lex %": f"{max(tf[i], 0) * 100:.0f}",
-        }
-        for r, i in enumerate(order, start=1)
-    ]
-    st.dataframe(
-        rows, width="stretch", hide_index=True,
-        column_config={"Path": st.column_config.TextColumn(width="large")},
-    )
+    render_results(order, ids, paths, dense, tf)
     if order:
         b = order[0]
         st.success(f"**Best match** — ID `{ids[b]}` · {paths[b]}")
