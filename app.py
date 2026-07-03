@@ -158,7 +158,7 @@ with st.sidebar:
 examples = ["Running shoes", "Phone case", "Robot vacuum", "Chitarra elettrica"]
 cols = st.columns(len(examples))
 for c, ex in zip(cols, examples):
-    if c.button(ex, use_container_width=True):
+    if c.button(ex, width="stretch"):
         st.session_state["q"] = ex
 
 query = st.text_input(
@@ -204,7 +204,7 @@ if query:
         for r, i in enumerate(order, start=1)
     ]
     st.dataframe(
-        rows, use_container_width=True, hide_index=True,
+        rows, width="stretch", hide_index=True,
         column_config={"Path": st.column_config.TextColumn(width="large")},
     )
     if order:

@@ -1,0 +1,10 @@
+# Streamlit Community Cloud / prod config
+[server]
+# Désactive le file-watcher : en prod il n'y a pas de hot-reload, et il tentait
+# d'importer tous les sous-modules de `transformers` (modèles d'image → torchvision
+# absent), ce qui polluait les logs de tracebacks non fatals.
+fileWatcherType = "none"
+headless = true
+
+[browser]
+gatherUsageStats = false
